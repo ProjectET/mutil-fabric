@@ -1,18 +1,22 @@
 package se.mickelus.mutil.util;
 
+import net.fabricmc.fabric.api.transfer.v1.item.InventoryStorage;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
+import net.fabricmc.fabric.api.transfer.v1.storage.base.SingleSlotStorage;
+import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.items.IItemHandler;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class ItemHandlerWrapper implements Container {
 
-    protected final IItemHandler inv;
+    protected final InventoryStorage inv;
 
-    public ItemHandlerWrapper(IItemHandler inv) {
+    public ItemHandlerWrapper(InventoryStorage inv) {
         this.inv = inv;
     }
 
@@ -21,7 +25,7 @@ public class ItemHandlerWrapper implements Container {
      */
     @Override
     public int getContainerSize() {
-        return inv.getSlots();
+        return inv.getSlots().size();
     }
 
     /**
@@ -29,7 +33,7 @@ public class ItemHandlerWrapper implements Container {
      */
     @Override
     public ItemStack getItem(int slot) {
-        return inv.getStackInSlot(slot);
+        return inv.getSlot(slot).getResource().toStack();
     }
 
     /**
@@ -37,7 +41,7 @@ public class ItemHandlerWrapper implements Container {
      */
     @Override
     public ItemStack removeItem(int slot, int count) {
-        ItemStack stack = inv.getStackInSlot(slot);
+        ItemStack stack = getItem(slot);
         return stack.isEmpty() ? ItemStack.EMPTY : stack.split(count);
     }
 
@@ -46,7 +50,13 @@ public class ItemHandlerWrapper implements Container {
      */
     @Override
     public void setItem(int slot, ItemStack stack) {
-        inv.insertItem(slot, stack, false);
+        try(Transaction transaction = Transaction.isOpen() ? Transaction.openNested(Transaction.getCurrentUnsafe()) : Transaction.openOuter()) {
+            SingleSlotStorage<ItemVariant> singleSlot = inv.getSlot(slot);
+            singleSlot.extract(singleSlot.getResource(), singleSlot.getAmount(), transaction);
+            singleSlot.insert(ItemVariant.of(stack), stack.getCount(), transaction);
+            inv.getSlots().set(slot, singleSlot);
+            transaction.commit();
+        }
     }
 
     /**
@@ -62,21 +72,21 @@ public class ItemHandlerWrapper implements Container {
 
     @Override
     public boolean isEmpty() {
-        for(int i = 0; i < inv.getSlots(); i++) {
-            if(!inv.getStackInSlot(i).isEmpty()) return false;
-        }
-        return true;
+        return inv.getSlots().isEmpty();
     }
 
     @Override
     public boolean canPlaceItem(int slot, ItemStack stack) {
-        return inv.isItemValid(slot, stack);
+        return inv.simulateInsert(ItemVariant.of(stack), stack.getCount(), null) == stack.getCount();
     }
 
     @Override
     public void clearContent() {
-        for(int i = 0; i < inv.getSlots(); i++) {
-            inv.extractItem(i, 64, false);
+        try(Transaction transaction = Transaction.isOpen() ? Transaction.openNested(Transaction.getCurrentUnsafe()) : Transaction.openOuter()) {
+            for (StorageView<ItemVariant> storageView : inv.getSlots()) {
+                storageView.extract(storageView.getResource(), storageView.getAmount(), transaction);
+            }
+            transaction.commit();
         }
     }
 

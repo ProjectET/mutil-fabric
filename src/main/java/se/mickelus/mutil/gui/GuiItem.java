@@ -86,8 +86,7 @@ public class GuiItem extends GuiElement {
             mc.getItemRenderer().renderAndDecorateItem(itemStack, refX + x, refY + y);
 
             if (renderDecoration) {
-                Font font = net.minecraftforge.client.RenderProperties.get(itemStack).getFont(itemStack);
-                mc.getItemRenderer().renderGuiItemDecorations(font != null ? font : mc.font, itemStack, refX + x, refY + y, getCountString());
+                mc.getItemRenderer().renderGuiItemDecorations( mc.font, itemStack, refX + x, refY + y, getCountString());
             }
 
             if (resetDepthTest) {
@@ -97,16 +96,12 @@ public class GuiItem extends GuiElement {
     }
 
     protected String getCountString() {
-        switch (countMode) {
-            case normal:
-                return null;
-            case always:
-                return String.valueOf(itemStack.getCount());
-            case never:
-                return "";
-        }
+        return switch (countMode) {
+            case normal -> null;
+            case always -> String.valueOf(itemStack.getCount());
+            case never -> "";
+        };
 
-        return null;
     }
 
     @Override

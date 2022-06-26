@@ -1,24 +1,13 @@
-buildscript {
-    repositories {
-        maven { url = 'https://files.minecraftforge.net/maven' }
-        jcenter()
-        mavenCentral()
-    }
-    dependencies {
-        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1.+', changing: true
-    }
+plugins {
+    id 'fabric-loom' version '0.11-SNAPSHOT'
+    id 'maven-publish'
 }
 
-//repositories {
-//    maven {
-//        url 'https://www.dogforce-games.com/maven/'
-//    }
-//}
-
-
-apply plugin: 'net.minecraftforge.gradle'
-apply plugin: 'eclipse'
-apply plugin: 'maven-publish'
+repositories {
+    maven { url = "https://mvn.devos.one/releases/" }
+    maven { url = "https://mvn.devos.one/snapshots/" }
+    maven { url = "https://jitpack.io/" }
+}
 
 if (System.getenv('VERSION') != null) {
     mutil_version = System.getenv('VERSION')
@@ -31,56 +20,23 @@ if (System.getenv('VERSION') != null) {
     mutil_version = stdout.toString().replace("\n", "").replace("\r", "").trim()
 }
 
-version = "${mc_version}-${mutil_version}"
-group = 'se.mickelus.mutil'
-archivesBaseName = "mutil"
+version = "${project.mc_version}-${project.mutil_version}"
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(java_version)
-println('Java: ' + System.getProperty('java.version') + ' JVM: ' + System.getProperty('java.vm.version') + '(' + System.getProperty('java.vendor') + ') Arch: ' + System.getProperty('os.arch'))
 
-minecraft {
-    mappings channel: 'official', version: mc_version
-    // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 
-    runs {
-        client {
-            workingDirectory project.file('run')
-            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
-            property 'forge.logging.console.level', 'debug'
-            mods {
-                mutil {
-                    source sourceSets.main
-                }
-            }
-        }
-
-        server {
-            workingDirectory project.file('run')
-            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
-            property 'forge.logging.console.level', 'debug'
-            mods {
-                mutil {
-                    source sourceSets.main
-                }
-            }
-        }
-
-        data {
-            workingDirectory project.file('run')
-            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
-            property 'forge.logging.console.level', 'debug'
-            args '--mod', 'mutil', '--all', '--output', file('src/generated/resources/')
-            mods {
-                mutil {
-                    source sourceSets.main
-                }
-            }
-        }
-    }
+    withSourcesJar()
 }
 
 dependencies {
-    minecraft "net.minecraftforge:forge:${mc_version}-${forge_version}"
+    minecraft "com.mojang:minecraft:${project.mc_version}"
+    mappings loom.officialMojangMappings()
+
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    modImplementation(include("io.github.fabricators_of_create:Porting-Lib:${project.port_lib_version}+${project.mc_version}-dev.${project.port_lib_hash}"))
 }
 
 jar {

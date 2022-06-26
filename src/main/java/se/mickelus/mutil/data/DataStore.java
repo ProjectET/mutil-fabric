@@ -2,6 +2,11 @@ package se.mickelus.mutil.data;
 
 import com.google.common.collect.Maps;
 import com.google.gson.*;
+import io.github.fabricators_of_create.porting_lib.crafting.CraftingHelper;
+import io.github.fabricators_of_create.porting_lib.util.ServerLifecycleHooks;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.fabric.api.resource.conditions.v1.ResourceConditions;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.packs.resources.Resource;
@@ -9,9 +14,6 @@ import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
-import net.minecraftforge.common.crafting.CraftingHelper;
-import net.minecraftforge.forgespi.Environment;
-import net.minecraftforge.server.ServerLifecycleHooks;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -101,7 +103,7 @@ public class DataStore<V> extends SimplePreparableReloadListener<Map<ResourceLoc
         rawData = splashList;
 
         // PacketHandler dependencies get upset when called upon before the server has started properly
-        if (Environment.get().getDist().isDedicatedServer() && ServerLifecycleHooks.getCurrentServer() != null) {
+        if (FabricLoader.getInstance().getEnvironmentType() == EnvType.SERVER && ServerLifecycleHooks.getCurrentServer() != null) {
             syncronizer.sendToAll(directory, rawData);
         }
 
@@ -153,11 +155,23 @@ public class DataStore<V> extends SimplePreparableReloadListener<Map<ResourceLoc
         }
 
         JsonObject jsonObject = json.getAsJsonObject();
-        return !jsonObject.has("conditions") || CraftingHelper.processConditions(GsonHelper.getAsJsonArray(jsonObject, "conditions"));
+        return !jsonObject.has("conditions") || processConditions(GsonHelper.getAsJsonArray(jsonObject, ResourceConditions.CONDITIONS_KEY));
     }
 
     protected void processData() {
 
+    }
+
+    private static boolean processConditions(JsonArray conditions) {
+        for (int x = 0; x < conditions.size(); x++) {
+            if (!conditions.get(x).isJsonObject())
+                throw new JsonSyntaxException("Conditions must be an array of JsonObjects");
+
+            JsonObject json = conditions.get(x).getAsJsonObject();
+            if (!CraftingHelper.getConditionPredicate(json).test(json))
+                return false;
+        }
+        return true;
     }
 
     public Map<ResourceLocation, JsonElement> getRawData() {

@@ -1,19 +1,19 @@
 package se.mickelus.mutil.gui;
 
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.SlotItemHandler;
 
 import javax.annotation.Nullable;
 
-public class ToggleableSlot extends SlotItemHandler {
+public class ToggleableSlot extends Slot {
 
     private boolean isEnabled = true;
     private int realX, realY;
 
-    public ToggleableSlot(IItemHandler itemHandler, int index, int xPosition, int yPosition) {
-        super(itemHandler, index, xPosition, yPosition);
+    public ToggleableSlot(Container container, int index, int xPosition, int yPosition) {
+        super(container, index, xPosition, yPosition);
 
         realX = xPosition;
         realY = yPosition;

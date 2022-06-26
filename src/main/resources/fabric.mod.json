@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "mutil",
+  "version": "${version}",
+  "name": "mutil",
+  "description": "mutil resources",
+  "authors": [
+    "ProjectET",
+    "Mickelus"
+  ],
+  "contact": {
+    "sources": "https://github.com/ProjectET/mutil-fabric",
+    "issues": "https://github.com/ProjectET/mutil-fabric/issues"
+  },
+  "license": [
+    "MIT"
+  ],
+  "entrypoints": {
+    "main": [
+      "se.mickelus.mutil.MUtilMod"
+    ]
+  },
+  "depends": {
+    "minecraft": "1.18.2",
+    "fabricloader": ">=0.12.0",
+    "fabric": ">=0.51.0"
+  }
+}

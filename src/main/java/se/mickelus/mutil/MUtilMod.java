@@ -1,11 +1,12 @@
 package se.mickelus.mutil;
 
-import net.minecraftforge.fml.common.Mod;
+import net.fabricmc.api.ModInitializer;
 
-@Mod(MUtilMod.MOD_ID)
-@Mod.EventBusSubscriber(bus=Mod.EventBusSubscriber.Bus.MOD)
-public class MUtilMod {
+public class MUtilMod implements ModInitializer {
     public static final String MOD_ID = "mutil";
 
-    public MUtilMod() { }
+    @Override
+    public void onInitialize() {
+
+    }
 }

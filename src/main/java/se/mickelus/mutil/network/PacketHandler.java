@@ -1,19 +1,10 @@
 package se.mickelus.mutil.network;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceKey;
+import me.pepperbell.simplenetworking.SimpleChannel;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.network.NetworkDirection;
-import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.simple.SimpleChannel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -27,13 +18,16 @@ public class PacketHandler {
 
     private final SimpleChannel channel;
     private final ArrayList<Class<? extends AbstractPacket>> packets = new ArrayList<>();
+    private static int packetCounter;
 
-    public PacketHandler(String namespace, String channelId, String protocolVersion) {
-        channel = NetworkRegistry.newSimpleChannel(
-                new ResourceLocation(namespace, channelId),
-                () -> protocolVersion,
-                protocolVersion::equals,
-                protocolVersion::equals);
+    public PacketHandler(String namespace, String channelId) {
+        channel = new SimpleChannel(new ResourceLocation(namespace, channelId));
+        packetCounter = 0;
+
+        channel.initServerListener();
+        if(FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
+            channel.initClientListener();
+        }
     }
 
     /**
@@ -44,7 +38,7 @@ public class PacketHandler {
      *
      * @return whether registration was successful. Failure may occur if 256 packets have been registered or if the registry already contains this packet
      */
-    public <T extends AbstractPacket> boolean registerPacket(Class<T> packetClass, Supplier<T> supplier) {
+    public <T extends AbstractPacket> boolean registerPacket(Class<T> packetClass, Supplier<T> supplier, PacketFlow flow) {
         if (packets.size() > 256) {
             logger.warn("Attempted to register packet but packet list is full: " + packetClass.toString());
             return false;
@@ -55,55 +49,24 @@ public class PacketHandler {
             return false;
         }
 
-        channel.messageBuilder(packetClass, packets.size())
-                .encoder(AbstractPacket::toBytes)
-                .decoder(buffer -> {
-                    T packet = supplier.get();
-                    packet.fromBytes(buffer);
-                    return packet;
-                })
-                .consumer(this::onMessage)
-                .add();
+        if(flow == PacketFlow.CLIENTBOUND) {
+            channel.registerS2CPacket(packetClass, packetCounter, friendlyByteBuf -> {
+                T packet = supplier.get();
+                packet.fromBytes(friendlyByteBuf);
+                return packet;
+            });
+        }
+        else {
+            channel.registerC2SPacket(packetClass, packetCounter, friendlyByteBuf -> {
+                T packet = supplier.get();
+                packet.fromBytes(friendlyByteBuf);
+                return packet;
+            });
+        }
 
         packets.add(packetClass);
+        packetCounter++;
+
         return true;
-    }
-
-    public AbstractPacket onMessage(AbstractPacket message, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            if (ctx.get().getDirection().getReceptionSide().isServer()) {
-                message.handle(ctx.get().getSender());
-            } else {
-                message.handle(getClientPlayer());
-            }
-        });
-        ctx.get().setPacketHandled(true);
-
-        return null;
-    }
-
-    @OnlyIn(Dist.CLIENT)
-    private Player getClientPlayer() {
-        return Minecraft.getInstance().player;
-    }
-
-    public void sendTo(AbstractPacket message, ServerPlayer player) {
-        channel.sendTo(message, player.connection.getConnection(), NetworkDirection.PLAY_TO_CLIENT);
-    }
-
-    public void sendToAllPlayers(AbstractPacket message) {
-        channel.send(PacketDistributor.ALL.noArg(), message);
-    }
-
-    public void sendToAllPlayersNear(AbstractPacket message, BlockPos pos, double r2, ResourceKey<Level> dim) {
-        channel.send(PacketDistributor.NEAR.with(PacketDistributor.TargetPoint.p(pos.getX(), pos.getY(), pos.getZ(), r2, dim)), message);
-    }
-
-    @OnlyIn(Dist.CLIENT)
-    public void sendToServer(AbstractPacket message) {
-        // crashes sometimes happen due to the connection being null
-        if (Minecraft.getInstance().getConnection() != null) {
-            channel.sendToServer(message);
-        }
     }
 }

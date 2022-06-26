@@ -1,20 +1,20 @@
 package se.mickelus.mutil.util;
 
+import net.fabricmc.fabric.api.transfer.v1.item.ItemStorage;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.items.CapabilityItemHandler;
 
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
-import java.util.Optional;
-import java.util.Spliterator;
-import java.util.Spliterators;
-import java.util.function.Consumer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 @ParametersAreNonnullByDefault
 public class ItemHandlerStream {
@@ -23,21 +23,16 @@ public class ItemHandlerStream {
     }
 
     public static Stream<ItemStack> of(@Nullable BlockEntity tileEntity) {
-        return Optional.ofNullable(tileEntity)
-                .map(te -> te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY))
-                .orElse(LazyOptional.empty())
-                .map(cap -> StreamSupport.stream(new Spliterators.AbstractSpliterator<ItemStack>(cap.getSlots(), Spliterator.NONNULL | Spliterator.SIZED) {
-                    int index = 0;
-
-                    public boolean tryAdvance(Consumer<? super ItemStack> consumer) {
-                        if (index < cap.getSlots()) {
-                            consumer.accept(cap.getStackInSlot(index++));
-                            return true;
-                        } else {
-                            return false;
-                        }
-                    }
-                }, false))
-                .orElseGet(Stream::empty);
+        List<ItemStack> stacks = new ArrayList<>();
+        Storage<ItemVariant> storage = ItemStorage.SIDED.find(tileEntity.getLevel(), tileEntity.getBlockPos(), Direction.NORTH);
+        if(storage == null || storage.equals(Storage.empty()))
+            return Stream.empty();
+        storage.iterable(Transaction.isOpen() ? Transaction.getCurrentUnsafe() : Transaction.openOuter())
+                .forEach(itemVariantStorageView -> {
+                    ItemStack stack = itemVariantStorageView.getResource().toStack();
+                    stack.setCount((int) itemVariantStorageView.getAmount());
+                    stacks.add(stack);
+                });
+        return stacks.stream();
     }
 }

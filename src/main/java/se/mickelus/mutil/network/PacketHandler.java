@@ -69,4 +69,8 @@ public class PacketHandler {
 
         return true;
     }
+
+    public SimpleChannel getChannel() {
+        return channel;
+    }
 }

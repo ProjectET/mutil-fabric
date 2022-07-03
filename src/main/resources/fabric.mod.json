@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "mutil",
   "version": "${version}",
-  "name": "mutil",
+  "name": "MUtil",
   "description": "mutil resources",
   "authors": [
     "ProjectET",

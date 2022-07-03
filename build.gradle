@@ -42,12 +42,12 @@ dependencies {
 jar {
     manifest {
         attributes([
-            "Specification-Title": "mutil",
+            "Specification-Title": "mutil-fabric",
             "Specification-Vendor": "mickelus",
             "Specification-Version": "1", // We are version 1 of ourselves
             "Implementation-Title": project.name,
             "Implementation-Version": "${mutil_version}",
-            "Implementation-Vendor" :"mutil",
+            "Implementation-Vendor" :"mutil-fabric",
             "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
         ])
     }
@@ -56,25 +56,7 @@ jar {
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            groupId project.group
-            artifactId project.archivesBaseName
-            version project.version
-            artifact jar
-            
-            pom.withXml {
-
-                // Go through all the dependencies.
-                asNode().dependencies.dependency.each { dep ->
-
-                    println 'Surpressing artifact ' + dep.artifactId.last().value().last() + ' from maven dependencies.'
-                    assert dep.parent().remove(dep)
-                }
-            }
-        }
-    }
-    repositories {
-        maven {
-            url = uri("file://${System.getenv("local_maven")}")
+            from components.java
         }
     }
 }
